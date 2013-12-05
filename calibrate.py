@@ -1,9 +1,19 @@
 from scipy import stats
+import math
+import numpy as np
 
 
 class BaseCurve(object):
 
   def __init__(self, x, y):
+    """
+    Constructor for base class for curve classes. Sorts input data by x value.
+
+    >>> c = BaseCurve([2,3,1,4],[1,2,3,4])
+    >>> zip(c.x, c.y)
+    [(1, 3), (2, 1), (3, 2), (4, 4)]
+    """
+
     points = sorted(zip(x, y), key=lambda p: p[0])
     self.x = tuple([p[0] for p in points])
     self.y = tuple([p[1] for p in points])
@@ -17,32 +27,39 @@ class LinearCurve(BaseCurve):
   """
 
   def __init__(self, x, y):
-    super(LinearCurve, self).__init__(x, y)
-    self.__m, self.__b, self.__r_value, self.__p_value, self.__stderr = stats.linregress(self.x, self.y)
-
-  @property
-  def slope(self):
     """
-    Returns slope of the curve.
+    Constructs a linear curve.
 
     >>> LinearCurve([1,2,3],[3,6,9]).slope
     3.0
-    >>> LinearCurve([1,2,3],[9,6,3]).slope
-    -3.0
-    """
-    return self.__m
-
-  @property
-  def y_intercept(self):
-    """
-    Returns y-intercept of the curve.
-
     >>> LinearCurve([1,2,3],[5,8,11]).y_intercept
     2.0
     >>> LinearCurve([1,2,3],[1,4,7]).y_intercept
     -2.0
+    >>> LinearCurve([1,2,3],[3,6,9]).s_y
+    0.0
+
+    >>> x = np.random.random(10)
+    >>> y = np.random.random(10)
+    >>> round(LinearCurve(x, y).r_value, 6) == round(stats.pearsonr(x, y)[0], 6)
+    True
+
+    >>> x = np.random.random(10)
+    >>> y = np.random.random(10)
+    >>> l = LinearCurve(x, y)
+    >>> s_y = math.sqrt(sum([(yi-l.slope*xi-l.y_intercept)**2 for xi,yi in zip(l.x, l.y)])/(len(l.x)-2))
+    >>> round(l.s_y, 6) == round(s_y, 6)
+    True
     """
-    return self.__b
+
+    super(LinearCurve, self).__init__(x, y)
+    self.slope, self.y_intercept, self.r_value, p_value, stderr = stats.linregress(self.x, self.y)
+
+    # Compute standard deviation in residuals
+    # see http://en.wikipedia.org/wiki/Calibration_curve
+    self.s_y = math.sqrt(sum([(yi-self.slope*xi-self.y_intercept)**2 for xi,yi in zip(self.x, self.y)])/
+                         (len(self.x)-2))
+
 
   @property
   def r_squared(self):
@@ -52,16 +69,14 @@ class LinearCurve(BaseCurve):
 
     >>> LinearCurve([1,2,3],[3,6,9]).r_squared
     1.0
-    >>> LinearCurve([1,2,3],[2,6,7]).r_squared
-    0.89285714285714279
-    >>> LinearCurve([1,2,3],[5,5,5]).r_squared
-    0.0
-    >>> LinearCurve([1,2,2,3],[3,6,5,9]).r_squared
-    0.96000000000000019
+    >>> x = np.random.random(10)
+    >>> y = np.random.random(10)
+    >>> round(LinearCurve(x, y).r_squared, 6) == round(stats.pearsonr(x, y)[0]**2, 6)
+    True
     """
-    return self.__r_value**2
+    return self.r_value**2
 
-  def interpolate(self, y):
+  def interpolate(self, y_unknown):
     """
     Find x value corresponding to the y value using the curve. Returns a bound
     of [x_lo, x_hi], where x_hi-x_lo is the error of interpolation. If y lies
@@ -69,18 +84,44 @@ class LinearCurve(BaseCurve):
     be None.
   
     >>> c = LinearCurve([1,2,3],[3,6,9])
-    >>> c.interpolate(7.5)
+    >>> x, err = c.interpolate(7.5)
+    >>> x
     2.5
+    >>> err(0.95)
+    0.0
+
+    >>> c = LinearCurve([1,2,3,4],[3,6,8.5,12])
+    >>> x, err = c.interpolate(7.5)
+    >>> round(x, 2)
+    2.54
+    >>> round(err(0.95), 2)
+    0.48
     """
 
-    # XXX compute error
-    # See http://www.chem.utoronto.ca/coursenotes/analsci/StatsTutorial/ConcCalib.html
-    # 
-    # XXX find limits of quantification and linearity and adjust results based
-    # on that.
+    # XXX find range of quantification
 
-    x = (y-self.y_intercept)*1.0/self.slope
-    return x
+    x_interpolated = (y_unknown-self.y_intercept)*1.0/self.slope
+
+    replicates = 1
+    xm = np.mean(self.x)
+
+    # see http://en.wikipedia.org/wiki/Calibration_curve
+    s_x = (self.s_y*1.0/abs(self.slope)) * math.sqrt(
+      1.0/replicates +
+      1.0/len(self.x) + 
+      (y_unknown - np.mean(self.y))**2 / (self.slope**2 * sum([(xi-xm)**2 for xi in self.x]))
+    )
+
+    # two tailed error mode: take in confidence as a fraction, e.g. 0.99.
+    # divide 2 for two-tailed test since stats.t.ppf is one-tailed. degree of
+    # freedom is n-2.
+    #
+    # see
+    # http://stackoverflow.com/questions/19339305/python-function-to-get-the-t-statistic
+    # http://www.chem.utoronto.ca/coursenotes/analsci/StatsTutorial/ConcCalib.html
+
+    err = lambda conf_frac: stats.t.ppf(1-(1-conf_frac)*0.5, len(self.x)-2)*s_x
+    return x_interpolated, err
 
 
 class CalibrationCurve(BaseCurve):
@@ -180,4 +221,9 @@ class CalibrationCurve(BaseCurve):
 if __name__ == '__main__':
   import doctest
   doctest.testmod()
+
+  #x = np.random.random(10)
+  #y = np.random.random(10)
+  #l = LinearCurve(x,y)
+
 

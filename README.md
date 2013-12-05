@@ -7,8 +7,7 @@ measured y signal.
 
 **Features**
 
- * Given x and y, produces calibration curve and finds dynamic range and limits
-   of linearity
- * Given y for an unknown analyte, interpolates to find x for the analyte
+ * Given x and y, creates calibration curve and finds linear portion and limits of linearity
+ * Given y of an unknown, interpolates to find x
  * Computes interpolation error
 

@@ -195,23 +195,45 @@ class CalibrationCurve(BaseCurve):
 
     >>> l = CalibrationCurve([1,1,3,3,4,5,6,7,8],[2,2,2,2,4,6,10,8,8]).linear_region()
     >>> zip(l.x, l.y)
-    [(3, 2), (4, 4), (5, 6)]
+    [(3, 2), (3, 2), (4, 4), (5, 6)]
 
     >>> l = CalibrationCurve([1,2,3,4],[2,2,2,2]).linear_region()
     >>> l is None
+    True
+
+    When computing linear region, it averages y values with the same x value.
+
+    >>> x = (2.7, 2.7, 2.7, 2.7, 8.6, 8.6, 8.6, 50.0, 50.0, 50.0, 50.0, 50.0)
+    >>> y = (931451, 990078, 1269656, 1191860, 4491733, 181446, 4385907, 5863033, 6025161, 9218105, 8091820, 340011)
+    >>> l = CalibrationCurve(x, y).linear_region()
+    >>> l.x == x
+    True
+    >>> l.y == y
     True
     """
 
     if self.__linear_region is not None:
       return self.__linear_region
 
+    # group data pts
+    grouped_x = []
+    grouped_y = []
+    for i, p in enumerate(zip(self.x, self.y)):
+      x = p[0]
+      y = p[1]
+      if len(grouped_x) == 0 or grouped_x[-1] != x:
+        grouped_x.append(x)
+        grouped_y.append([])
+      grouped_y[-1].append(y)
+    grouped_y = [np.mean(y) for y in grouped_y]
+
     ELBOW_R = 0.6
     linear_pos = []
 
     # find first elbow
-    for i in range(2, len(self.x)):
-      x = self.x[0:i]
-      y = self.y[0:i]
+    for i in range(2, len(grouped_x)):
+      x = grouped_x[0:i]
+      y = grouped_y[0:i]
       r = stats.pearsonr(x,y)[0]
       if r is not None and r >= ELBOW_R:
         linear_pos.append(i-2)
@@ -221,16 +243,27 @@ class CalibrationCurve(BaseCurve):
       return None
 
     # find second elbow
-    for i in range(2, len(self.x)-linear_pos[0]):
-      x = self.x[len(self.x)-i:len(self.x)]
-      y = self.y[len(self.x)-i:len(self.x)]
+    for i in range(2, len(grouped_x)-linear_pos[0]):
+      x = grouped_x[len(grouped_x)-i:len(grouped_x)]
+      y = grouped_y[len(grouped_x)-i:len(grouped_x)]
       r = stats.pearsonr(x,y)[0]
       if r is not None and r >= ELBOW_R:
-        linear_pos.append(len(self.x)-i+1)
+        linear_pos.append(len(grouped_x)-i+1)
         break
 
     if len(linear_pos) == 1: # all linear
-      linear_pos.append(len(self.x)-1)
+      linear_pos.append(len(grouped_x)-1)
+
+    # linear_pos are indices in grouped_x, convert to indices for self.x
+    linear_x0 = grouped_x[linear_pos[0]]
+    linear_x1 = grouped_x[linear_pos[1]]
+
+    linear_pos = [None, None]
+    for i, x in enumerate(self.x):
+      if x == linear_x0 and linear_pos[0] is None: # get index of first linear_x0
+        linear_pos[0] = i
+      if x == linear_x1: # get index of last linear_x1
+        linear_pos[1] = i
 
     self.__lol = tuple(linear_pos)
     self.__linear_region = LinearCurve(self.x[linear_pos[0]:linear_pos[1]+1],
@@ -248,7 +281,7 @@ class CalibrationCurve(BaseCurve):
     (0, 7)
 
     >>> CalibrationCurve([1,1,3,3,4,5,6,7,8],[2,2,2,2,4,6,10,8,8]).lol()
-    (3, 5)
+    (2, 5)
 
     >>> CalibrationCurve([1,2,3,4],[2,2,2,2]).lol() is None
     True

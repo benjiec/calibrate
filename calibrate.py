@@ -275,13 +275,13 @@ class CalibrationCurve(BaseCurve):
     Returns limits of linearity.
 
     >>> CalibrationCurve([1,2,3],[2,4,6]).lol()
-    (0, 2)
+    (1, 3)
 
     >>> CalibrationCurve([1,2,3,4,5,6,7,8],[2,3,4,5,6,7,8,9]).lol()
-    (0, 7)
+    (1, 8)
 
     >>> CalibrationCurve([1,1,3,3,4,5,6,7,8],[2,2,2,2,4,6,10,8,8]).lol()
-    (2, 5)
+    (3, 5)
 
     >>> CalibrationCurve([1,2,3,4],[2,2,2,2]).lol() is None
     True
@@ -289,7 +289,9 @@ class CalibrationCurve(BaseCurve):
 
     if self.__lol is None:
       self.linear_region()
-    return self.__lol
+    if self.__lol is not None:
+      return (self.x[self.__lol[0]], self.x[self.__lol[1]])
+    return None
 
 
 if __name__ == '__main__':

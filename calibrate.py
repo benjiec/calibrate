@@ -98,6 +98,13 @@ class LinearCurve(BaseCurve):
     quantifiable x value that is lower than the x value that would have been
     extraploated for y_unknown.
 
+    >>> c = LinearCurve([1, 5],[10, 50])
+    >>> x, err, min_x, max_x = c.interpolate(40)
+    >>> x
+    4.0
+    >>> err(0.95)
+    nan
+
     >>> c = LinearCurve([1,2,3],[3,6,9])
     >>> x, err, min_x, max_x = c.interpolate(7.5)
     >>> x
@@ -197,6 +204,14 @@ class CalibrationCurve(BaseCurve):
     >>> zip(l.x, l.y)
     [(3, 2), (3, 2), (4, 4), (5, 6)]
 
+    >>> l = CalibrationCurve([1, 5], [10, 50]).linear_region()
+    >>> zip(l.x, l.y)
+    [(1, 10), (5, 50)]
+
+    >>> l = CalibrationCurve([1, 3, 5], [10, 30, 40]).linear_region()
+    >>> zip(l.x, l.y)
+    [(1, 10), (3, 30), (5, 40)]
+
     >>> l = CalibrationCurve([1,2,3,4],[2,2,2,2]).linear_region()
     >>> l is None
     True
@@ -229,6 +244,11 @@ class CalibrationCurve(BaseCurve):
 
     ELBOW_R = 0.6
     linear_pos = []
+
+    if len(grouped_x) == 2:
+      self.__lol = (0, len(self.x)-1)
+      self.__linear_region = LinearCurve(self.x, self.y)
+      return self.__linear_region
 
     # find first elbow
     for i in range(2, len(grouped_x)):

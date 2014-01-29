@@ -26,7 +26,7 @@ class LinearCurve(BaseCurve):
   must have a linear relationship.
   """
 
-  def __init__(self, x, y):
+  def __init__(self, x, y, min_x=None, max_x=None):
     """
     Constructs a linear curve.
 
@@ -60,6 +60,13 @@ class LinearCurve(BaseCurve):
     self.s_y = math.sqrt(sum([(yi-self.slope*xi-self.y_intercept)**2 for xi,yi in zip(self.x, self.y)])/
                          (len(self.x)-2))
 
+    # Limits of linearity
+    if min_x is None:
+      min_x = min(self.x)
+    if max_x is None:
+      max_x = max(self.x)
+    self.min_x = min_x
+    self.max_x = max_x
 
   @property
   def r_squared(self):
@@ -133,6 +140,11 @@ class LinearCurve(BaseCurve):
     >>> max_x
     4.0
 
+    >>> c = LinearCurve([1,2,3,4],[3,6,8.5,12],1,4.2)
+    >>> x, err, min_x, max_x = c.interpolate(12.1)
+    >>> round(x, 2)
+    4.1
+
     >>> c = LinearCurve([1,2,3,4],[3,6,8.5,12])
     >>> x, err, min_x, max_x = c.interpolate(0.9)
     >>> set([x, err, max_x]) == set([None])
@@ -145,12 +157,12 @@ class LinearCurve(BaseCurve):
     x_interpolated = (y_unknown-self.y_intercept)*1.0/self.slope
 
     # if x_interpolated is below smallest x, return smallest x as min_x
-    if x_interpolated < min(self.x):
-      return None, None, min(self.x)*1.0, None
+    if x_interpolated < self.min_x:
+      return None, None, self.min_x*1.0, None
 
     # if x_interpolated is above highest x, return highest x as max_x
-    if x_interpolated > max(self.x):
-      return None, None, None, max(self.x)*1.0
+    if x_interpolated > self.max_x:
+      return None, None, None, self.max_x*1.0
 
     # see http://en.wikipedia.org/wiki/Calibration_curve
     xm = np.mean(self.x)

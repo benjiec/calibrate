@@ -13,10 +13,4 @@ setup(name='calibrate',
         'numpy',
         'scipy'
       ],
-      classifiers=[
-        'Operating System :: OS Independent',
-        'Programming Language :: Python',
-        'Topic :: Utilities'
-      ],
      )
-

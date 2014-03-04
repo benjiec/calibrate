@@ -68,6 +68,22 @@ class LinearCurve(BaseCurve):
     self.min_x = min_x
     self.max_x = max_x
 
+  def fit_points(self):
+    """
+    Returns fitted curve as x-y points.
+
+    >>> LinearCurve([1,2,3],[3,6,9]).fit_points()
+    ((1.0, 3.0), (2.0, 6.0), (3.0, 9.0))
+    >>> LinearCurve([1,2],[3,6]).fit_points()
+    ((1.0, 3.0), (2.0, 6.0))
+    >>> LinearCurve([1,2,3],[3,3,9]).fit_points()
+    ((1.0, 2.0), (2.0, 5.0), (3.0, 8.0))
+    """
+    nvalues = max(2, len(self.x))
+    bin = 1.0*(max(self.x)-min(self.x))/(nvalues-1)
+    x_values = [min(self.x)+i*bin for i in range(0, nvalues)]
+    return tuple([(x, self.slope*x+self.y_intercept) for x in x_values])
+
   @property
   def r_squared(self):
     """

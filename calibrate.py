@@ -79,6 +79,7 @@ class LinearCurve(BaseCurve):
     >>> LinearCurve([1,2,3],[3,3,9]).fit_points()
     ((1.0, 2.0), (2.0, 5.0), (3.0, 8.0))
     """
+
     nvalues = max(2, len(self.x))
     bin = 1.0*(max(self.x)-min(self.x))/(nvalues-1)
     x_values = [min(self.x)+i*bin for i in range(0, nvalues)]
@@ -97,6 +98,7 @@ class LinearCurve(BaseCurve):
     >>> round(LinearCurve(x, y).r_squared, 6) == round(stats.pearsonr(x, y)[0]**2, 6)
     True
     """
+
     return self.r_value**2
 
   def interpolate(self, y_unknown, replicates=1):
@@ -197,6 +199,102 @@ class LinearCurve(BaseCurve):
     # http://www.chem.utoronto.ca/coursenotes/analsci/StatsTutorial/ConcCalib.html
 
     err = lambda conf_frac: stats.t.ppf(1-(1-conf_frac)*0.5, len(self.x)-2)*s_x
+    return x_interpolated, err, None, None
+
+
+class PowerCurve(BaseCurve):
+
+  def __init__(self, x, y, min_x=None, max_x=None):
+    """
+    Fit x and y through a power function y=mx^n
+
+    >>> PowerCurve([0.01,0.1,1,10],[10,100,1000,10000]).scaling_factor
+    1000.0
+    >>> PowerCurve([0.01,0.1,1,10],[10,100,1000,10000]).exponent
+    1.0
+    >>> PowerCurve([0.01,0.1,1,10],[10,100,1000,10000]).s_y
+    0.0
+    >>> PowerCurve([0.01,0.1,1,10],[10,100,1000,9000]).s_y
+    206.44011786899605
+    """
+
+    super(PowerCurve, self).__init__(x, y)
+
+    # Limits of linearity
+    if min_x is None:
+      min_x = min(self.x)
+    if max_x is None:
+      max_x = max(self.x)
+    self.min_x = min_x
+    self.max_x = max_x
+
+    log_x = [math.log10(n) for n in x]
+    log_y = [math.log10(n) for n in y]
+    self.log_linear = LinearCurve(log_x, log_y, math.log10(self.min_x), math.log10(self.max_x))
+    self.scaling_factor = 10**(self.log_linear.y_intercept)
+    self.exponent = self.log_linear.slope
+
+    # Compute standard deviation in residuals
+    self.s_y = math.sqrt(sum([(yi-self.scaling_factor*(xi**self.exponent))**2 for xi,yi in zip(self.x, self.y)])/
+                         (len(self.x)-2))
+
+  def fit_points(self):
+    """
+    Returns fitted curve as x-y points.
+
+    >>> PowerCurve([0.01,0.1,1,10],[10,100,1000,10000]).fit_points()
+    ((0.01, 10.0), (3.34, 3340.0), (6.67, 6670.0), (10.0, 10000.0))
+    """
+
+    nvalues = max(2, len(self.x))
+    bin = 1.0*(max(self.x)-min(self.x))/(nvalues-1)
+    x_values = [min(self.x)+i*bin for i in range(0, nvalues)]
+    return tuple([(x, self.scaling_factor*(x**self.exponent)) for x in x_values])
+
+  def interpolate(self, y_unknown, replicates=1):
+    """
+    Find x value corresponding to the y value using the curve. Returns 
+
+    (interpolated_x, err_f, min_x, max_x)
+
+    See LinearCurve.interpolate for detail.
+
+    >>> c = PowerCurve([0.01,0.1,1,10],[10,100,1000,10000])
+    >>> x, err, min_x, max_x = c.interpolate(500)
+    >>> round(x,2)
+    0.5
+    >>> err(0.95)
+    0.0
+
+    >>> c = PowerCurve([0.01,0.1,1,10],[10,100,900,9000])
+    >>> x, err, min_x, max_x = c.interpolate(500)
+    >>> round(x,2)
+    0.53
+    >>> round(err(0.95),4)
+    0.0876
+
+    >>> c = PowerCurve([0.01,0.1,1,10],[100,1000,6000,90000])
+    >>> x, err, min_x, max_x = c.interpolate(530)
+    >>> round(x,2)
+    0.06
+    >>> round(err(0.95),4)
+    0.1096
+    """
+
+    log_interpolated = self.log_linear.interpolate(math.log10(y_unknown), replicates=replicates)
+
+    if log_interpolated[0] is None:
+      return [n if n is None else 10**n for n in log_interpolated]
+
+    log_err = log_interpolated[1]
+    x_interpolated = 10**log_interpolated[0]
+
+    def err(conf_frac):
+      err = log_err(conf_frac)
+      log_rng = (log_interpolated[0]-err, log_interpolated[0]+err)
+      rng = [10**n for n in log_rng]
+      return (rng[1]-rng[0])*1.0/2
+
     return x_interpolated, err, None, None
 
 

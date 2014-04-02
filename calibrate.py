@@ -61,9 +61,9 @@ class LinearCurve(BaseCurve):
                          (len(self.x)-2))
 
     # Limits of linearity
-    if min_x is None:
+    if min_x is None or min_x < min(self.x):
       min_x = min(self.x)
-    if max_x is None:
+    if max_x is None or max_x > max(self.x):
       max_x = max(self.x)
     self.min_x = min_x
     self.max_x = max_x
@@ -221,12 +221,15 @@ class PowerCurve(BaseCurve):
     super(PowerCurve, self).__init__(x, y)
 
     # Limits of linearity
-    if min_x is None:
+    if min_x is None or min_x < min(self.x):
       min_x = min(self.x)
-    if max_x is None:
+    if max_x is None or max_x > max(self.x):
       max_x = max(self.x)
     self.min_x = min_x
     self.max_x = max_x
+
+    if self.min_x <= 0:
+      raise Exception('Cannot handle non-positive x values')
 
     log_x = [math.log10(n) for n in x]
     log_y = [math.log10(n) for n in y]

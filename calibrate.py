@@ -243,12 +243,13 @@ class PowerCurve(BaseCurve):
     Returns fitted curve as x-y points.
 
     >>> PowerCurve([0.01,0.1,1,10],[10,100,1000,10000]).fit_points()
-    ((0.01, 10.0), (3.34, 3340.0), (6.67, 6670.0), (10.0, 10000.0))
+    ((0.01, 10.0), (0.1, 100.0), (1.0, 1000.0), (10.0, 10000.0))
     """
 
     nvalues = max(2, len(self.x))
-    bin = 1.0*(max(self.x)-min(self.x))/(nvalues-1)
-    x_values = [min(self.x)+i*bin for i in range(0, nvalues)]
+    bin = 1.0*(math.log10(max(self.x))-math.log10(min(self.x)))/(nvalues-1)
+    log_x_values = [math.log10(min(self.x))+i*bin for i in range(0, nvalues)]
+    x_values = [10**n for n in log_x_values]
     return tuple([(x, self.scaling_factor*(x**self.exponent)) for x in x_values])
 
   def interpolate(self, y_unknown, replicates=1):

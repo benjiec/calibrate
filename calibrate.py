@@ -160,8 +160,10 @@ class LinearCurve(BaseCurve):
 
     >>> c = LinearCurve([1,2,3,4],[3,6,8.5,12],1,4.2)
     >>> x, err, min_x, max_x = c.interpolate(12.1)
-    >>> round(x, 2)
-    4.1
+    >>> print x
+    None
+    >>> max_x
+    4.0
 
     >>> c = LinearCurve([1,2,3,4],[3,6,8.5,12])
     >>> x, err, min_x, max_x = c.interpolate(0.9)

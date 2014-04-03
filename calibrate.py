@@ -216,8 +216,10 @@ class PowerCurve(BaseCurve):
     1.0
     >>> PowerCurve([0.01,0.1,1,10],[10,100,1000,10000]).s_y
     0.0
-    >>> PowerCurve([0.01,0.1,1,10],[10,100,1000,9000]).s_y
-    206.44011786899605
+    >>> c = PowerCurve([0.01,0.1,1,10],[10,100,1000,9000])
+    >>> r = math.sqrt(((10-(c.scaling_factor*(0.01**c.exponent)))**2+(100-(c.scaling_factor*(0.1**c.exponent)))**2+(1000-(c.scaling_factor*(1**c.exponent)))**2+(9000-(c.scaling_factor*(10**c.exponent)))**2)/(4-2))
+    >>> c.s_y == r
+    True
     """
 
     super(PowerCurve, self).__init__(x, y)
@@ -240,8 +242,9 @@ class PowerCurve(BaseCurve):
     self.exponent = self.log_linear.slope
 
     # Compute standard deviation in residuals
-    self.s_y = math.sqrt(sum([(yi-self.scaling_factor*(xi**self.exponent))**2 for xi,yi in zip(self.x, self.y)])/
-                         (len(self.x)-2))
+    self.s_y = math.sqrt(sum([(yi-self.scaling_factor*(xi**self.exponent))**2
+                              for xi,yi in zip(self.x, self.y)])
+                         /(len(self.x)-2))
 
   def fit_points(self):
     """
@@ -267,7 +270,7 @@ class PowerCurve(BaseCurve):
 
     >>> c = PowerCurve([0.01,0.1,1,10],[10,100,1000,10000])
     >>> x, err, min_x, max_x = c.interpolate(500)
-    >>> round(x,2)
+    >>> round(x,1)
     0.5
     >>> err(0.95)
     0.0
@@ -297,8 +300,8 @@ class PowerCurve(BaseCurve):
 
     def err(conf_frac):
       err = log_err(conf_frac)
-      log_rng = (log_interpolated[0]-err, log_interpolated[0]+err)
-      rng = [10**n for n in log_rng]
+      rng = (log_interpolated[0]-err, log_interpolated[0]+err)
+      rng = [10**n for n in rng]
       return (rng[1]-rng[0])*1.0/2
 
     return x_interpolated, err, None, None

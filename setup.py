@@ -7,8 +7,8 @@ setup(name='calibrate',
       description='Interpolate using a calibration curve',
       author='Benjie Chen',
       author_email='benjie@alum.mit.edu',
-      packages=["."],
-      package_dir={"": "."},
+      packages=["calibrate"],
+      package_dir={"calibrate": "."},
       install_requires=[
         'numpy',
         'scipy'

@@ -53,7 +53,7 @@ class LinearCurve(BaseCurve):
     """
 
     super(LinearCurve, self).__init__(x, y)
-    self.slope, self.y_intercept, self.r_value, p_value, stderr = stats.linregress(self.x, self.y)
+    self.slope, self.y_intercept, self.r_value, self.p_value, self.stderr = stats.linregress(self.x, self.y)
 
     # Compute standard deviation in residuals
     # see http://en.wikipedia.org/wiki/Calibration_curve

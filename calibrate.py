@@ -105,23 +105,22 @@ class LinearCurve(BaseCurve):
     """
     Find x value corresponding to the y value using the curve. Returns 
 
-    (interpolated_x, err_f, min_x, max_x)
+    (est_x, err_f, min_x, max_x)
 
-    interpolated_x: value interpolated from the linear curve. None if y_unknown
-    is below or above limits of quantification.
+    est_x: value interpolated or extrapolated from the linear curve.
 
     err_f: error function taking confidence (e.g. 0.99) as argument and
     returning error. You can interpret x with error as
 
       (interpolated_x-err_f(p), interpolated_x+err_f(p))
 
-    min_x: if y_unknown is below limit of quantification, this is the lowest
-    quantifiable x value that is higher than the x value that would have been
-    extrapolated for y_unknown.
+    min_x: if y_unknown is below limit of quantification and est_x is
+    extrapolated, this is the lowest quantifiable x value that is higher than
+    the x value that would have been extrapolated for y_unknown.
 
-    max_x: if y_unknown is above limit of quantification, this is the highest
-    quantifiable x value that is lower than the x value that would have been
-    extraploated for y_unknown.
+    max_x: if y_unknown is above limit of quantification and est_x is
+    extrapolated, this is the highest quantifiable x value that is lower than
+    the x value that would have been extraploated for y_unknown.
 
     >>> c = LinearCurve([1, 5],[10, 50])
     >>> x, err, min_x, max_x = c.interpolate(40)
@@ -153,36 +152,32 @@ class LinearCurve(BaseCurve):
 
     >>> c = LinearCurve([1,2,3,4],[3,6,8.5,12])
     >>> x, err, min_x, max_x = c.interpolate(12.1)
-    >>> set([x, err, min_x]) == set([None])
-    True
+    >>> round(x,2)
+    4.1
+    >>> min_x
+    1.0
     >>> max_x
     4.0
 
     >>> c = LinearCurve([1,2,3,4],[3,6,8.5,12],1,4.2)
     >>> x, err, min_x, max_x = c.interpolate(12.1)
-    >>> print x
-    None
+    >>> round(x,2)
+    4.1
     >>> max_x
     4.0
 
     >>> c = LinearCurve([1,2,3,4],[3,6,8.5,12])
     >>> x, err, min_x, max_x = c.interpolate(0.9)
-    >>> set([x, err, max_x]) == set([None])
-    True
+    >>> round(x, 2)
+    0.31
     >>> min_x
     1.0
+    >>> max_x
+    4.0
 
     """
 
-    x_interpolated = (y_unknown-self.y_intercept)*1.0/self.slope
-
-    # if x_interpolated is below smallest x, return smallest x as min_x
-    if x_interpolated < self.min_x:
-      return None, None, self.min_x*1.0, None
-
-    # if x_interpolated is above highest x, return highest x as max_x
-    if x_interpolated > self.max_x:
-      return None, None, None, self.max_x*1.0
+    x_est = (y_unknown-self.y_intercept)*1.0/self.slope
 
     # see http://en.wikipedia.org/wiki/Calibration_curve
     xm = np.mean(self.x)
@@ -201,7 +196,7 @@ class LinearCurve(BaseCurve):
     # http://www.chem.utoronto.ca/coursenotes/analsci/StatsTutorial/ConcCalib.html
 
     err = lambda conf_frac: stats.t.ppf(1-(1-conf_frac)*0.5, len(self.x)-2)*s_x
-    return x_interpolated, err, None, None
+    return x_est, err, self.min_x*1.0, self.max_x*1.0
 
 
 class PowerCurve(BaseCurve):
@@ -264,7 +259,7 @@ class PowerCurve(BaseCurve):
     """
     Find x value corresponding to the y value using the curve. Returns 
 
-    (interpolated_x, err_f, min_x, max_x)
+    (est_x, err_f, min_x, max_x)
 
     See LinearCurve.interpolate for detail.
 
@@ -290,21 +285,20 @@ class PowerCurve(BaseCurve):
     0.1096
     """
 
-    log_interpolated = self.log_linear.interpolate(math.log10(y_unknown), replicates=replicates)
+    log_est = self.log_linear.interpolate(math.log10(y_unknown), replicates=replicates)
 
-    if log_interpolated[0] is None:
-      return [n if n is None else 10**n for n in log_interpolated]
+    if log_est[0] is None:
+      return [n if n is None else 10**n for n in log_est]
 
-    log_err = log_interpolated[1]
-    x_interpolated = 10**log_interpolated[0]
+    log_err = log_est[1]
 
     def err(conf_frac):
       err = log_err(conf_frac)
-      rng = (log_interpolated[0]-err, log_interpolated[0]+err)
+      rng = (log_est[0]-err, log_est[0]+err)
       rng = [10**n for n in rng]
       return (rng[1]-rng[0])*1.0/2
 
-    return x_interpolated, err, None, None
+    return 10**log_est[0], err, 10**log_est[2], 10**log_est[3]
 
 
 if __name__ == '__main__':
